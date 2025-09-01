@@ -96,7 +96,7 @@ pub fn run_tournament() -> Result<(), Box<dyn std::error::Error>> {
         matches: matches.clone(),
     };
 
-    // ensure data dir exists
+    // ensure data dir exists and write history
     create_dir_all("data")?;
     let history_path = Path::new("data/history.json");
     let mut history: Vec<TournamentResult> = if history_path.exists() {
@@ -107,21 +107,72 @@ pub fn run_tournament() -> Result<(), Box<dyn std::error::Error>> {
         Vec::new()
     };
 
-    history.push(result);
+    history.push(result.clone());
     let mut file = File::create(history_path)?;
     file.write_all(serde_json::to_string_pretty(&history)?.as_bytes())?;
 
-    // write a simple static html
-    create_dir_all("static")?;
-    let mut html = String::new();
-    html.push_str("<!doctype html>\n<html>\n<head><meta charset=\"utf-8\"><title>Game of Trust - Last tournament</title></head>\n<body>\n<h1>Leaderboard (normalized)</h1>\n<table border=\"1\">\n<tr><th>Rank</th><th>Strategy</th><th>Score</th></tr>\n");
-    for (i, p) in leaderboard.iter().enumerate() {
-        html.push_str(&format!("<tr><td>{}</td><td>{}</td><td>{:.3}</td></tr>\n", i+1, p.name, p.total_normalized));
+    // compute highest ever score across history
+    let mut highest = std::f64::NEG_INFINITY;
+    for t in &history {
+        for p in &t.leaderboard {
+            if p.total_normalized > highest {
+                highest = p.total_normalized;
+            }
+        }
     }
-    html.push_str("</table>\n</body>\n</html>");
-    let mut html_file = File::create("static/index.html")?;
-    html_file.write_all(html.as_bytes())?;
+    if highest == std::f64::NEG_INFINITY {
+        highest = 0.0;
+    }
 
-    println!("Tournament complete. Results written to data/history.json and static/index.html");
+    // prepare nicer HTML
+    let mut rows = String::new();
+    for (i, p) in leaderboard.iter().enumerate() {
+        rows.push_str(&format!("<tr><td>{}</td><td>{}</td><td style=\"text-align:right;\">{:.3}</td></tr>\n", i+1, p.name, p.total_normalized));
+    }
+
+    let html = format!(r#"<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Game of Trust — Tournament</title>
+<style>
+body {{ font-family: system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial; padding: 2rem; max-width: 900px; margin: auto; color: #111; }}
+h1 {{ margin-bottom: .2rem; }}
+h2 {{ color: #444; }}
+table {{ width: 100%; border-collapse: collapse; margin-top: 1rem; }}
+th, td {{ text-align: left; padding: .5rem; border-bottom: 1px solid #eee; }}
+thead th {{ background: #f7f7f7; }}
+.leader {{ display:flex; gap:1rem; align-items:center; }}
+.badge {{ background:#0366d6; color:white; padding:.25rem .5rem; border-radius:4px; font-weight:600; }}
+.footer {{ margin-top: 2rem; color: #666; font-size: .9rem; }}
+</style>
+</head>
+<body>
+<h1>Game of Trust — Last tournament</h1>
+<div class="leader"><div class="badge">Highest ever</div><div>{highest:.3}</div></div>
+<h2>Leaderboard (normalized)</h2>
+<table aria-describedby="leaderboard">
+<thead><tr><th>Rank</th><th>Strategy</th><th style="text-align:right;">Score</th></tr></thead>
+<tbody>
+{rows}
+</tbody>
+</table>
+<div class="footer">This page is auto-generated. JSON history available at <code>/data/history.json</code>.</div>
+</body>
+</html>"#, highest=highest, rows=rows);
+
+    // write both static and docs
+    create_dir_all("static")?;
+    let mut static_file = File::create("static/index.html")?;
+    static_file.write_all(html.as_bytes())?;
+
+    create_dir_all("docs/data")?;
+    let mut docs_file = File::create("docs/index.html")?;
+    docs_file.write_all(html.as_bytes())?;
+    let mut docs_data_file = File::create("docs/data/history.json")?;
+    docs_data_file.write_all(serde_json::to_string_pretty(&history)?.as_bytes())?;
+
+    println!("Tournament complete. Results written to data/history.json, static/index.html and docs/ (ready for Pages)");
     Ok(())
 }
