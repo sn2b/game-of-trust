@@ -111,58 +111,9 @@ pub fn run_tournament() -> Result<(), Box<dyn std::error::Error>> {
     let mut file = File::create(history_path)?;
     file.write_all(serde_json::to_string_pretty(&history)?.as_bytes())?;
 
-    // compute highest ever score across history
-    let mut highest = std::f64::NEG_INFINITY;
-    for t in &history {
-        for p in &t.leaderboard {
-            if p.total_normalized > highest {
-                highest = p.total_normalized;
-            }
-        }
-    }
-    if highest == std::f64::NEG_INFINITY {
-        highest = 0.0;
-    }
+    // generate index html and write both static and docs (rendering outsourced to output module)
+    let html = crate::output::render_index_html(&leaderboard, &history);
 
-    // prepare nicer HTML
-    let mut rows = String::new();
-    for (i, p) in leaderboard.iter().enumerate() {
-        rows.push_str(&format!("<tr><td>{}</td><td>{}</td><td style=\"text-align:right;\">{:.3}</td></tr>\n", i+1, p.name, p.total_normalized));
-    }
-
-    let html = format!(r#"<!doctype html>
-<html lang="en">
-<head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Game of Trust — Tournament</title>
-<style>
-body {{ font-family: system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial; padding: 2rem; max-width: 900px; margin: auto; color: #111; }}
-h1 {{ margin-bottom: .2rem; }}
-h2 {{ color: #444; }}
-table {{ width: 100%; border-collapse: collapse; margin-top: 1rem; }}
-th, td {{ text-align: left; padding: .5rem; border-bottom: 1px solid #eee; }}
-thead th {{ background: #f7f7f7; }}
-.leader {{ display:flex; gap:1rem; align-items:center; }}
-.badge {{ background:#0366d6; color:white; padding:.25rem .5rem; border-radius:4px; font-weight:600; }}
-.footer {{ margin-top: 2rem; color: #666; font-size: .9rem; }}
-</style>
-</head>
-<body>
-<h1>Game of Trust — Last tournament</h1>
-<div class="leader"><div class="badge">Highest ever</div><div>{highest:.3}</div></div>
-<h2>Leaderboard (normalized)</h2>
-<table aria-describedby="leaderboard">
-<thead><tr><th>Rank</th><th>Strategy</th><th style="text-align:right;">Score</th></tr></thead>
-<tbody>
-{rows}
-</tbody>
-</table>
-<div class="footer">This page is auto-generated. JSON history available at <code>/data/history.json</code>.</div>
-</body>
-</html>"#, highest=highest, rows=rows);
-
-    // write both static and docs
     create_dir_all("static")?;
     let mut static_file = File::create("static/index.html")?;
     static_file.write_all(html.as_bytes())?;
