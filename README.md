@@ -33,7 +33,7 @@ To prevent predictability in the last rounds, the tournament will have a random 
 
 ## The leaderboard
 
-The leaderboard will be on a Pages site here: [Link coming]
+The leaderboard will be on a Pages site here: https://sn2b.github.io/game-of-trust/
 
 ## How to contribute
 
