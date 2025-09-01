@@ -1,0 +1,25 @@
+name: Weekly tournament
+
+on:
+  schedule:
+    - cron: '0 0 * * 1' # every Monday at 00:00 UTC
+  workflow_dispatch: {}
+
+jobs:
+  tournament:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Set up Rust
+        uses: actions-rs/toolchain@v1
+        with:
+          toolchain: stable
+          profile: minimal
+          override: true
+      - name: Run tournament
+        run: cargo run --release
+      - name: Commit and push results
+        run: |
+          git add data/history.json static/index.html
+          git commit -m "Weekly tournament results" || echo "no changes to commit"
+          git push

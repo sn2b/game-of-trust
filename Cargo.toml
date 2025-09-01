@@ -1,0 +1,11 @@
+[package]
+name = "game-of-trust"
+version = "0.1.0"
+edition = "2021"
+authors = ["sn2b <sn2b@example.com>"]
+description = "Prisoner's dilemma tournament"
+
+[dependencies]
+rand = "0.8"
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
